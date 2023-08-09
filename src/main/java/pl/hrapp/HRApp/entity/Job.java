@@ -1,9 +1,6 @@
 package pl.hrapp.HRApp.entity;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.annotation.*;
 import lombok.*;
 
 import jakarta.persistence.*;
@@ -18,9 +15,6 @@ import java.util.Set;
 @Builder
 @Entity
 @Table(name = "jobs")
-@JsonIdentityInfo(
-        generator = ObjectIdGenerators.PropertyGenerator.class,
-        property = "id")
 public class Job {
 
     @Id
@@ -32,6 +26,17 @@ public class Job {
 
     private Float salary;
 
-    @OneToMany(mappedBy = "job")
+    @OneToMany(
+            mappedBy = "job"
+    )
+    @JsonBackReference
     private Set<Employee> employees = new HashSet<>();
+
+    public void addEmployee(Employee employee) {
+        this.getEmployees().add(employee);
+    }
+
+    public void removeEmployee(Long id) {
+        this.getEmployees().removeIf(p -> p.getId() == id);
+    }
 }

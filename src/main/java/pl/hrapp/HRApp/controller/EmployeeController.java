@@ -1,21 +1,26 @@
 package pl.hrapp.HRApp.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import org.springframework.http.ResponseEntity;
 import pl.hrapp.HRApp.dto.EmployeeRequest;
+import pl.hrapp.HRApp.entity.Comment;
 import pl.hrapp.HRApp.entity.Employee;
 import pl.hrapp.HRApp.entity.Job;
 import pl.hrapp.HRApp.entity.Project;
+import pl.hrapp.HRApp.repository.CommentRepository;
 import pl.hrapp.HRApp.repository.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import pl.hrapp.HRApp.repository.JobRepository;
 import pl.hrapp.HRApp.repository.ProjectRepository;
+import pl.hrapp.HRApp.view.ProjectViews;
 
 import java.util.List;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/employees")
+@CrossOrigin
 public class EmployeeController {
 
     @Autowired
@@ -27,6 +32,9 @@ public class EmployeeController {
     @Autowired
     private ProjectRepository projectRepository;
 
+    @Autowired
+    private CommentRepository commentRepository;
+
     @GetMapping("/employees")
     public List<Employee> fetchEmployees(){
         return employeeRepository.findAll();
@@ -36,6 +44,12 @@ public class EmployeeController {
     public ResponseEntity<Employee> getEmployeeById(@PathVariable Long id) {
         Optional<Employee> employee = employeeRepository.findById(id);
         return employee.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/managers")
+    public List<Employee> getEmployeeByIsManager() {
+        List<Employee> employees = employeeRepository.findEmployeesByIsManager(true);
+        return employees;
     }
 
     @PostMapping
@@ -60,57 +74,35 @@ public class EmployeeController {
         return employeeRepository.save(employee);
     }
 
-    @PostMapping("/{employeeId}/assign-project/{projectId}")
-    public ResponseEntity<Employee> assignProjectToEmployee(
-            @PathVariable Long employeeId,
-            @PathVariable Long projectId
-    ) {
-        Optional<Employee> employeeOptional = employeeRepository.findById(employeeId);
+    @PutMapping("/{id}")
+    public ResponseEntity<Employee> updateEmployee(@PathVariable Long id, @RequestBody EmployeeRequest employeeRequest) {
+        Optional<Employee> employeeOptional = employeeRepository.findById(id);
+
         if (employeeOptional.isPresent()) {
             Employee employee = employeeOptional.get();
+            employee.setFirstName(employeeRequest.getFirstName());
+            employee.setSurname(employeeRequest.getSurname());
+            employee.setPhoneNumber(employeeRequest.getPhoneNumber());
+            employee.setIsManager(employeeRequest.getIsManager());
 
-            Optional<Project> projectOptional = employee.getProjects().stream()
-                    .filter(project -> project.getId() == projectId)
-                    .findFirst();
-
-            if (projectOptional.isPresent()) {
-                return ResponseEntity.badRequest().build(); // Project is already assigned
-            }
-
-            Optional<Project> assignedProjectOptional = projectRepository.findById(projectId);
-            if (assignedProjectOptional.isPresent()) {
-                Project assignedProject = assignedProjectOptional.get();
-                employee.addProject(assignedProject);
-                employeeRepository.save(employee);
-                return ResponseEntity.ok(employee);
+            // Fetch and set the manager employee
+            if (employeeRequest.getManagerId() != null) {
+                Optional<Employee> manager = employeeRepository.findById(employeeRequest.getManagerId());
+                manager.ifPresent(employee::setManagingEmployee);
             } else {
-                return ResponseEntity.notFound().build(); // Project not found
+                employee.setManagingEmployee(null); // Clear the manager if not provided
             }
-        } else {
-            return ResponseEntity.notFound().build(); // Employee not found
-        }
-    }
 
-    @DeleteMapping("/{employeeId}/remove-project/{projectId}")
-    public ResponseEntity<Employee> removeProjectFromEmployee(
-            @PathVariable Long employeeId,
-            @PathVariable Long projectId
-    ) {
-        Optional<Employee> employeeOptional = employeeRepository.findById(employeeId);
-        if (employeeOptional.isPresent()) {
-            Employee employee = employeeOptional.get();
-            Optional<Project> projectOptional = employee.getProjects().stream()
-                    .filter(project -> project.getId() == projectId)
-                    .findFirst();
-
-            if (projectOptional.isPresent()) {
-                Project assignedProject = projectOptional.get();
-                employee.removeProject(assignedProject.getId());
-                employeeRepository.save(employee);
-                return ResponseEntity.ok(employee);
+            // Fetch and set the job
+            if (employeeRequest.getJobId() != null) {
+                Optional<Job> job = jobRepository.findById(employeeRequest.getJobId());
+                job.ifPresent(employee::setJob);
             } else {
-                return ResponseEntity.notFound().build(); // Project not found in the employee's projects
+                employee.setJob(null); // Clear the job if not provided
             }
+
+            Employee updatedEmployee = employeeRepository.save(employee);
+            return ResponseEntity.ok(updatedEmployee);
         } else {
             return ResponseEntity.notFound().build(); // Employee not found
         }
@@ -118,12 +110,40 @@ public class EmployeeController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
-        Optional<Employee> employee = employeeRepository.findById(id);
-        if (employee.isPresent()) {
-            employeeRepository.deleteById(id);
+        Optional<Employee> employeeOptional = employeeRepository.findById(id);
+
+        if (employeeOptional.isPresent()) {
+            Employee employee = employeeOptional.get();
+
+            // Remove the employee from the projects they are assigned to
+            for (Project project : employee.getProjects()) {
+                project.getProjectEmployees().remove(employee);
+            }
+
+            // Update managingEmployee of subordinates if applicable
+            if (employee.getManagingEmployee() != null) {
+                employee.getManagingEmployee().getSubordinates().remove(employee);
+            }
+
+            // Update subordinates of managingEmployee if applicable
+            if (!employee.getSubordinates().isEmpty()) {
+                for (Employee subordinate : employee.getSubordinates()) {
+                    subordinate.setManagingEmployee(null);
+                }
+            }
+
+            // Delete comments associated with the employee
+            for (Comment comment : employee.getComments()) {
+                commentRepository.delete(comment);
+            }
+            employee.getComments().clear();
+
+            // Finally, delete the employee
+            employeeRepository.delete(employee);
+
             return ResponseEntity.noContent().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.notFound().build(); // Employee not found
         }
     }
 }

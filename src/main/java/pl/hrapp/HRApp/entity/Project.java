@@ -1,9 +1,10 @@
 package pl.hrapp.HRApp.entity;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.fasterxml.jackson.annotation.*;
 import jakarta.persistence.*;
 import lombok.*;
+import pl.hrapp.HRApp.view.EmployeeViews;
+import pl.hrapp.HRApp.view.ProjectViews;
 
 import java.util.Date;
 import java.util.HashSet;
@@ -16,33 +17,31 @@ import java.util.Set;
 @Builder
 @Entity
 @Table(name = "projects")
-@JsonIdentityInfo(
-        generator = ObjectIdGenerators.PropertyGenerator.class,
-        property = "id")
 public class Project {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(ProjectViews.BasicProject.class)
     private long id;
 
     @Column(name = "project_name", nullable = false)
+    @JsonView(ProjectViews.BasicProject.class)
     private String projectName;
 
     @Column(name = "start_date")
+    @JsonView(ProjectViews.BasicProject.class)
     private Date startDate;
 
     @Column(name = "end_date")
+    @JsonView(ProjectViews.BasicProject.class)
     private Date endDate;
 
     @Column(name = "employees_number")
-    private Integer employeesNumber;
+    @JsonView(ProjectViews.BasicProject.class)
+    private Integer employeesNumber = 0;
 
-    @ManyToMany(fetch = FetchType.LAZY,
-            cascade = {
-                    CascadeType.PERSIST,
-                    CascadeType.MERGE
-            },
-            mappedBy = "projects")
+    @JsonIgnore
+    @ManyToMany(cascade = { CascadeType.ALL}, mappedBy = "projects")
     Set<Employee> projectEmployees = new HashSet<>();
 
     public Set<Employee> getProjectEmployees() {

@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.hrapp.HRApp.dto.JobRequest;
+import pl.hrapp.HRApp.entity.Employee;
 import pl.hrapp.HRApp.entity.Job;
+import pl.hrapp.HRApp.repository.EmployeeRepository;
 import pl.hrapp.HRApp.repository.JobRepository;
 
 import java.util.List;
@@ -13,10 +15,14 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/jobs")
+@CrossOrigin(origins = "http://localhost:8081")
 public class JobController {
 
     @Autowired
     private JobRepository jobRepository;
+
+    @Autowired
+    private EmployeeRepository employeeRepository;
 
     @GetMapping
     public List<JobRequest> getAllJobs() {
@@ -65,6 +71,10 @@ public class JobController {
     public ResponseEntity<Void> deleteJob(@PathVariable Long id) {
         Optional<Job> jobOptional = jobRepository.findById(id);
         if (jobOptional.isPresent()) {
+            List<Employee> employees = employeeRepository.findEmployeesByJobId(jobOptional.get().getId());
+            for (Employee employee : employees) {
+                employee.setJob(null);
+            }
             jobRepository.delete(jobOptional.get());
             return ResponseEntity.noContent().build();
         } else {

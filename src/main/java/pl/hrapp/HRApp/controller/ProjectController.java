@@ -1,18 +1,22 @@
 package pl.hrapp.HRApp.controller;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pl.hrapp.HRApp.dto.ProjectRequest;
 import pl.hrapp.HRApp.entity.Employee;
 import pl.hrapp.HRApp.entity.Project;
 import pl.hrapp.HRApp.repository.EmployeeRepository;
 import pl.hrapp.HRApp.repository.ProjectRepository;
+import pl.hrapp.HRApp.view.ProjectViews;
 
 import java.util.List;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/projects")
+@CrossOrigin
 public class ProjectController {
 
     @Autowired
@@ -22,20 +26,39 @@ public class ProjectController {
     private EmployeeRepository employeeRepository;
 
     @GetMapping
+    @JsonView(ProjectViews.BasicProject.class)
     public List<Project> getAllProjects() {
         return projectRepository.findAll();
     }
 
     @GetMapping("/{id}")
+    @JsonView(ProjectViews.BasicProject.class)
     public ResponseEntity<Project> getProjectById(@PathVariable Long id) {
         Optional<Project> projectOptional = projectRepository.findById(id);
         return projectOptional.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
+    @JsonView(ProjectViews.BasicProject.class)
     public ResponseEntity<Project> createProject(@RequestBody Project project) {
         Project savedProject = projectRepository.save(project);
         return ResponseEntity.ok(savedProject);
+    }
+
+    @PutMapping("/{id}")
+    @JsonView(ProjectViews.BasicProject.class)
+    public ResponseEntity<Project> editProject(@PathVariable Long id, @RequestBody ProjectRequest projectRequest) {
+        Optional<Project> projectOptional = projectRepository.findById(id);
+
+        if (projectOptional.isPresent()) {
+            Project project = projectOptional.get();
+            project.setProjectName(projectRequest.getProjectName());
+            project.setStartDate(projectRequest.getStartDate());
+            project.setEndDate(projectRequest.getEndDate());
+            Project updatedProject = projectRepository.save(project);
+            return ResponseEntity.ok(updatedProject);
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{projectId}/assign-employee/{employeeId}")
@@ -59,6 +82,8 @@ public class ProjectController {
             if (assignedEmployeeOptional.isPresent()) {
                 Employee assignedEmployee = assignedEmployeeOptional.get();
                 project.getProjectEmployees().add(assignedEmployee);
+                project.setEmployeesNumber(project.getEmployeesNumber() + 1);
+                assignedEmployee.getProjects().add(project);
                 projectRepository.save(project);
                 return ResponseEntity.ok(project);
             } else {

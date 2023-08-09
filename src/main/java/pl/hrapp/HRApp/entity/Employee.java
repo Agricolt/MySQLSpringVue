@@ -3,6 +3,8 @@ package pl.hrapp.HRApp.entity;
 import com.fasterxml.jackson.annotation.*;
 import jakarta.persistence.*;
 import lombok.*;
+import pl.hrapp.HRApp.view.CommentViews;
+import pl.hrapp.HRApp.view.EmployeeViews;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -16,19 +18,19 @@ import java.util.Set;
 @Builder
 @Entity
 @Table(name = "employees")
-@JsonIdentityInfo(
-        generator = ObjectIdGenerators.PropertyGenerator.class,
-        property = "id")
 public class Employee {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(EmployeeViews.EmployeeIdFirstNameSurname.class)
     private long id;
 
     @Column(name = "first_name", nullable = false)
+    @JsonView(EmployeeViews.EmployeeIdFirstNameSurname.class)
     private String firstName;
 
     @Column(name = "surname")
+    @JsonView(EmployeeViews.EmployeeIdFirstNameSurname.class)
     private String surname;
 
     @Column(name = "phone_number")
@@ -37,21 +39,26 @@ public class Employee {
     @Column(name = "is_Manager")
     private Boolean isManager;
 
-    @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Comment> comments = new ArrayList<>();
+    @OneToMany(mappedBy = "employee", fetch = FetchType.EAGER, cascade = CascadeType.REMOVE)
+    @JsonManagedReference
+    private List<pl.hrapp.HRApp.entity.Comment> comments = new ArrayList<>();
 
-    @ManyToOne
+    @ManyToOne(cascade={CascadeType.ALL})
     @JoinColumn(name = "managing_employee_id")
+    @JsonManagedReference
     private Employee managingEmployee;
 
     @OneToMany(mappedBy = "managingEmployee")
-    private Set<Employee> subordinates = new HashSet<>();
+    @JsonBackReference
+    private Set<Employee> subordinates = new HashSet<Employee>();
 
-    @ManyToOne
-    @JoinColumn(name = "job_id", nullable=false)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "job_id")
+    @JsonManagedReference
     private Job job;
 
-    @ManyToMany(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JsonManagedReference
+    @ManyToMany
     @JoinTable(
             name = "employee_project",
             joinColumns = @JoinColumn(name = "employee_id"),
@@ -59,24 +66,21 @@ public class Employee {
     )
     Set<Project> projects = new HashSet<>();
 
-    public Set<Project> getProjects() {
-        return projects;
-    }
-
-    public void setTags(Set<Project> tags) {
-        this.projects = tags;
-    }
-
     public void addProject(Project project) {
-        this.projects.add(project);
+        this.getProjects().add(project);
         project.getProjectEmployees().add(this);
     }
 
-    public void removeProject(long ProjectId) {
-        Project project = this.projects.stream().filter(t -> t.getId() == id).findFirst().orElse(null);
-        if (project != null) {
-            this.projects.remove(project);
-            project.getProjectEmployees().remove(this);
-        }
+    public void removeProject(long projectId) {
+        this.projects.removeIf(p -> p.getId() == projectId);
     }
+
+    public void addComment(pl.hrapp.HRApp.entity.Comment comment) {
+        this.getComments().add(comment);
+    }
+
+    public void removeComment(long commentId) {
+        this.getComments().removeIf(p -> p.getId() == commentId);
+    }
+
 }
