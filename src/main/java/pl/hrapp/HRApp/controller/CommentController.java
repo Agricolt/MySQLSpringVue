@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pl.hrapp.HRApp.dto.CommentRequest;
+import pl.hrapp.HRApp.entity.Comment;
 import pl.hrapp.HRApp.entity.Employee;
 import pl.hrapp.HRApp.repository.CommentRepository;
 import pl.hrapp.HRApp.repository.EmployeeRepository;
@@ -34,6 +35,13 @@ public class CommentController {
     public ResponseEntity<pl.hrapp.HRApp.entity.Comment> getCommentById(@PathVariable Long id) {
         Optional<pl.hrapp.HRApp.entity.Comment> comment = commentRepository.findById(id);
         return comment.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/employee/{employeeId}")
+    @JsonView(CommentViews.AllCommentView.class)
+    public List<Comment> getCommentByEmployeeId(@PathVariable Long employeeId) {
+        List<Comment> comments = commentRepository.findCommentsByEmployeeId(employeeId);
+        return comments;
     }
 
     @PostMapping

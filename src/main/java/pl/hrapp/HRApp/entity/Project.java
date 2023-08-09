@@ -41,7 +41,7 @@ public class Project {
     private Integer employeesNumber = 0;
 
     @JsonIgnore
-    @ManyToMany(cascade = { CascadeType.ALL}, mappedBy = "projects")
+    @ManyToMany(cascade = { CascadeType.PERSIST}, mappedBy = "projects")
     Set<Employee> projectEmployees = new HashSet<>();
 
     public Set<Employee> getProjectEmployees() {

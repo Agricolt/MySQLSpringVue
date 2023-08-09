@@ -43,7 +43,7 @@ public class Employee {
     @JsonManagedReference
     private List<pl.hrapp.HRApp.entity.Comment> comments = new ArrayList<>();
 
-    @ManyToOne(cascade={CascadeType.ALL})
+    @ManyToOne(cascade={CascadeType.PERSIST})
     @JoinColumn(name = "managing_employee_id")
     @JsonManagedReference
     private Employee managingEmployee;

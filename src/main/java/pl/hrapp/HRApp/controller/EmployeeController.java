@@ -1,6 +1,7 @@
 package pl.hrapp.HRApp.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import pl.hrapp.HRApp.dto.EmployeeRequest;
 import pl.hrapp.HRApp.entity.Comment;
@@ -15,6 +16,8 @@ import pl.hrapp.HRApp.repository.JobRepository;
 import pl.hrapp.HRApp.repository.ProjectRepository;
 import pl.hrapp.HRApp.view.ProjectViews;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,6 +53,38 @@ public class EmployeeController {
     public List<Employee> getEmployeeByIsManager() {
         List<Employee> employees = employeeRepository.findEmployeesByIsManager(true);
         return employees;
+    }
+
+    @GetMapping("/project/{projectId}")
+    public List<Employee> getEmployeeByProject(@PathVariable Long projectId) {
+        Optional<Project> optionalProject = projectRepository.findById(projectId);
+        List<Employee> employees = new ArrayList<>();
+        if (optionalProject.isPresent()) {
+            employees = employeeRepository.findEmployeesByProjects(optionalProject.get());
+        }
+        return employees;
+    }
+
+    @GetMapping("/projectCandidates/{projectId}")
+    public List<Employee> getEmployeeWithoutThisProject(@PathVariable Long projectId) {
+        Optional<Project> optionalProject = projectRepository.findById(projectId);
+        List<Employee> allEmployees = new ArrayList<>();
+        if (optionalProject.isPresent()) {
+            allEmployees = employeeRepository.findAll();
+            List<Employee> projectEmployees = employeeRepository.findEmployeesByProjects(optionalProject.get());
+
+            Iterator<Employee> itr = allEmployees.iterator();
+            while (itr.hasNext()) {
+                Employee el = itr.next();
+                for (Employee employee : projectEmployees) {
+                    if (el == employee) {
+                        itr.remove();
+                        continue;
+                    }
+                }
+            }
+        }
+        return allEmployees;
     }
 
     @PostMapping

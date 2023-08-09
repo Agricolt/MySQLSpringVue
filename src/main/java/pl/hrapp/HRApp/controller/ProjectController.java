@@ -82,7 +82,7 @@ public class ProjectController {
             if (assignedEmployeeOptional.isPresent()) {
                 Employee assignedEmployee = assignedEmployeeOptional.get();
                 project.getProjectEmployees().add(assignedEmployee);
-                project.setEmployeesNumber(project.getEmployeesNumber() + 1);
+                project.setEmployeesNumber(project.getEmployeesNumber() - 1);
                 assignedEmployee.getProjects().add(project);
                 projectRepository.save(project);
                 return ResponseEntity.ok(project);
@@ -109,6 +109,8 @@ public class ProjectController {
             if (employeeOptional.isPresent()) {
                 Employee assignedEmployee = employeeOptional.get();
                 project.getProjectEmployees().remove(assignedEmployee);
+                assignedEmployee.getProjects().remove(project);
+                project.setEmployeesNumber(project.getEmployeesNumber() + 1);
                 projectRepository.save(project);
                 return ResponseEntity.ok(project);
             } else {
@@ -123,6 +125,10 @@ public class ProjectController {
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         Optional<Project> projectOptional = projectRepository.findById(id);
         if (projectOptional.isPresent()) {
+            List<Employee> employeesAssignedToProject = employeeRepository.findEmployeesByProjects(projectOptional.get());
+            for (Employee employee : employeesAssignedToProject) {
+                employee.getProjects().remove(projectOptional.get());
+            }
             projectRepository.delete(projectOptional.get());
             return ResponseEntity.noContent().build();
         } else {
